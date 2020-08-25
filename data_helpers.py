@@ -2,6 +2,10 @@ import re
 
 import numpy as np
 import tensorflow_datasets as tfds
+from nltk.corpus import stopwords
+from sklearn.feature_extraction.text import TfidfVectorizer
+
+en_stops = set(stopwords.words('english'))
 
 
 def clean_str(string):
@@ -127,7 +131,7 @@ def padding_sent(question, answer, max_answer_len, max_question_len):
 #     return question, answer, label
 
 
-def undersampling(question, answer, label):
+def under_sampling(question, answer, label):
     under_question = []
     under_answer = []
     under_label = []
@@ -150,13 +154,54 @@ def undersampling(question, answer, label):
     return under_question, under_answer, under_label
 
 
-def shuffle_data(question, answer, label):
+def shuffle_data(question, answer, label, x_feat):
     shuffle_indices = np.random.permutation(np.arange(len(question)))
     shuffle_question = []
     shuffle_answer = []
     shuffle_label = []
+    shuffle_x_feat = []
     for idx in shuffle_indices:
         shuffle_question.append(question[idx])
         shuffle_answer.append(answer[idx])
         shuffle_label.append(label[idx])
-    return shuffle_question, shuffle_answer, shuffle_label
+        shuffle_x_feat.append(x_feat[idx])
+    return shuffle_question, shuffle_answer, shuffle_label, shuffle_x_feat
+
+
+def get_x_feat(question, answer):
+    x_feat = []
+    for idx in range(0, len(question)):
+        corpus = [question[idx], answer[idx]]
+        vectorizer = TfidfVectorizer()
+        score = vectorizer.fit_transform(corpus).toarray()
+        words_list = vectorizer.get_feature_names()
+        all_words = nonstop_words = 0
+        score_all_words = score_nonstop_words = 0
+        # question_score_all_words = []
+        # answer_score_all_words = []
+        # question_score_nonstop_words = []
+        # answer_score_nonstop_words = []
+        for pos in range(0, len(words_list)):
+            word = words_list[pos]
+            if word in question[idx] and word in answer[idx]:
+                all_words += 1
+                score_all_words += score[1][pos]
+                # question_score_all_words.append(score[0][pos])
+                # answer_score_all_words.append(score[1][pos])
+                if word not in en_stops:
+                    nonstop_words += 1
+                    score_nonstop_words += score[1][pos]
+                    # question_score_nonstop_words.append(score[0][pos])
+                    # answer_score_nonstop_words.append(score[1][pos])
+        # if len(question_score_all_words) == 0:
+        #     score_all_words = 0
+        # else:
+        #     score_all_words = 1 - cosine(question_score_all_words, answer_score_all_words)
+        #
+        # if len(question_score_nonstop_words) == 0:
+        #     score_nonstop_words = 0
+        # else:
+        #     score_nonstop_words = 1 - cosine(question_score_nonstop_words, answer_score_nonstop_words)
+
+        x_feat.append([all_words, score_all_words, nonstop_words, score_nonstop_words])
+    return x_feat
